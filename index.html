@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crimson Desert — Mapa de Pywel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --surface2: #18181d;
+    --border: #2a2a32;
+    --border-bright: #3d3d4a;
+    --crimson: #8b1a1a;
+    --crimson-bright: #c0392b;
+    --crimson-glow: #e74c3c;
+    --gold: #c9a96e;
+    --gold-dim: #7a6340;
+    --text: #d4cfc8;
+    --text-dim: #7a756e;
+    --text-muted: #45423d;
+    --white: #f0ebe4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    overflow: hidden;
+  }
+
+  #app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  #sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson-bright), var(--gold), var(--crimson-bright), transparent);
+  }
+
+  #sidebar-header {
+    padding: 22px 20px 18px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+
+  #sidebar-header .emblem {
+    font-size: 10px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 4px;
+    color: var(--crimson-bright);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    opacity: 0.8;
+  }
+
+  #sidebar-header h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: var(--white);
+    letter-spacing: 1px;
+    line-height: 1.1;
+  }
+
+  #sidebar-header h1 span {
+    color: var(--crimson-glow);
+  }
+
+  #sidebar-header .subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 5px;
+    font-style: italic;
+    letter-spacing: 0.5px;
+  }
+
+  #online-indicator {
+    position: absolute;
+    top: 22px; right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  #online-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #444;
+    transition: background 0.4s;
+  }
+
+  #online-dot.connected { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+  #online-dot.error { background: var(--crimson-bright); box-shadow: 0 0 6px var(--crimson-bright); }
+
+  #sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  #sidebar-body::-webkit-scrollbar { width: 4px; }
+  #sidebar-body::-webkit-scrollbar-track { background: transparent; }
+  #sidebar-body::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .sidebar-section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  #search-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #search-input::placeholder { color: var(--text-muted); font-style: italic; }
+  #search-input:focus { border-color: var(--gold-dim); }
+
+  .filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .filter-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 7px 8px;
+    color: var(--text-dim);
+    font-family: 'Crimson Pro', serif;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .filter-btn:hover { border-color: var(--border-bright); color: var(--text); }
+
+  .filter-btn.active {
+    border-color: var(--gold-dim);
+    color: var(--gold);
+    background: rgba(201, 169, 110, 0.07);
+  }
+
+  .filter-btn .emoji { font-size: 14px; }
+  .filter-btn .label { font-size: 12px; }
+  .filter-btn .count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'Cinzel', serif;
+  }
+
+  #marker-list-section { flex: 1; min-height: 0; }
+
+  #marker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  #marker-list::-webkit-scrollbar { width: 3px; }
+  #marker-list::-webkit-scrollbar-thumb { background: var(--border); }
+
+  .marker-list-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .marker-list-item:hover {
+    border-color: var(--border-bright);
+    background: #1e1e23;
+  }
+
+  .marker-list-item .item-emoji { font-size: 15px; margin-top: 1px; }
+
+  .marker-list-item .item-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .marker-list-item .item-desc {
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+
+  .marker-list-item .item-cat {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  .marker-list-item .item-delete {
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 0 2px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+    line-height: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .marker-list-item:hover .item-delete { opacity: 1; }
+  .marker-list-item .item-delete:hover { color: var(--crimson-bright); }
+
+  #empty-list {
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  #sidebar-footer {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #total-count {
+    font-family: 'Cinzel', serif;
+    color: var(--gold-dim);
+  }
+
+  #map-container {
+    flex: 1;
+    position: relative;
+    background: var(--bg);
+  }
+
+  #map {
+    width: 100%;
+    height: 100%;
+    background: #0d0c10;
+  }
+
+  .leaflet-container {
+    background: #0d0c10 !important;
+    cursor: crosshair !important;
+  }
+
+  .leaflet-control-zoom {
+    border: 1px solid var(--border) !important;
+    background: var(--surface) !important;
+  }
+
+  .leaflet-control-zoom a {
+    background: var(--surface) !important;
+    color: var(--text-dim) !important;
+    border-bottom: 1px solid var(--border) !important;
+    font-family: 'Cinzel', serif !important;
+  }
+
+  .leaflet-control-zoom a:hover {
+    background: var(--surface2) !important;
+    color: var(--gold) !important;
+  }
+
+  .leaflet-control-attribution { display: none !important; }
+
+  #map-hint {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    font-style: italic;
+    pointer-events: none;
+    z-index: 500;
+    font-family: 'Crimson Pro', serif;
+    letter-spacing: 0.3px;
+  }
+
+  #modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 9000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+  }
+
+  #modal-overlay.open { display: flex; }
+
+  #modal {
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 4px;
+    width: 360px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #modal::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--crimson-bright), transparent);
+  }
+
+  #modal-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #modal-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    letter-spacing: 2px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  #modal-coords {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-family: monospace;
+  }
+
+  #modal-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .modal-label {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  #modal-description {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-size: 15px;
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.2s;
+  }
+
+  #modal-description:focus { border-color: var(--gold-dim); }
+  #modal-description::placeholder { color: var(--text-muted); font-style: italic; }
+
+  .category-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .cat-option {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 8px 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .cat-option:hover { border-color: var(--border-bright); }
+
+  .cat-option.selected {
+    border-color: var(--crimson-bright);
+    background: rgba(139, 26, 26, 0.18);
+  }
+
+  .cat-option .cat-emoji { font-size: 18px; display: block; margin-bottom: 3px; }
+  .cat-option .cat-name {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+  }
+
+  .cat-option.selected .cat-name { color: var(--text); }
+
+  #modal-footer {
+    padding: 12px 20px 16px;
+    display: flex;
+    gap: 8px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 3px;
+    font-family: 'Cinzel', serif;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 1px solid;
+  }
+
+  .btn-cancel {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text-dim);
+  }
+
+  .btn-cancel:hover { border-color: var(--border-bright); color: var(--text); }
+
+  .btn-save {
+    background: var(--crimson);
+    border-color: var(--crimson-bright);
+    color: var(--white);
+  }
+
+  .btn-save:hover { background: var(--crimson-bright); box-shadow: 0 0 12px rgba(192,57,43,0.4); }
+
+  .custom-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px !important;
+    height: 34px !important;
+    background: rgba(10,10,11,0.88);
+    border: 1.5px solid var(--border-bright);
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer !important;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    margin-left: -17px !important;
+    margin-top: -17px !important;
+  }
+
+  .custom-marker:hover {
+    transform: scale(1.2);
+    border-color: var(--gold-dim);
+    box-shadow: 0 0 14px rgba(201,169,110,0.25);
+  }
+
+  .leaflet-popup-content-wrapper {
+    background: var(--surface) !important;
+    border: 1px solid var(--border-bright) !important;
+    border-radius: 4px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7) !important;
+    color: var(--text) !important;
+    font-family: 'Crimson Pro', serif !important;
+  }
+
+  .leaflet-popup-tip { background: var(--surface) !important; }
+
+  .popup-content {
+    min-width: 160px;
+    max-width: 240px;
+  }
+
+  .popup-cat {
+    font-family: 'Cinzel', serif;
+    font-size: 9px;
+    letter-spacing: 2.5px;
+    color: var(--crimson-bright);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .popup-desc {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.45;
+  }
+
+  .popup-delete {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    padding: 4px 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+    transition: color 0.15s;
+  }
+
+  .popup-delete:hover { color: var(--crimson-bright); }
+
+  #toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface2);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    padding: 9px 18px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-style: italic;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <div class="emblem">Crimson Desert</div>
+      <h1>Mapa de <span>Pywel</span></h1>
+      <div class="subtitle">Continente — Exploração Cooperativa</div>
+      <div id="online-indicator">
+        <div id="online-dot"></div>
+        <span id="online-label">offline</span>
+      </div>
+    </div>
+    <div id="sidebar-body">
+      <div>
+        <div class="sidebar-section-label">Buscar marcadores</div>
+        <input type="text" id="search-input" placeholder="Descrição, local, tipo...">
+      </div>
+      <div>
+        <div class="sidebar-section-label">Filtrar por categoria</div>
+        <div class="filter-grid" id="filter-grid"></div>
+      </div>
+      <div id="marker-list-section">
+        <div class="sidebar-section-label">Marcadores visíveis</div>
+        <div id="marker-list">
+          <div id="empty-list">Nenhum marcador ainda.<br>Clique no mapa para adicionar.</div>
+        </div>
+      </div>
+    </div>
+    <div id="sidebar-footer">
+      <span>Total: <span id="total-count">0</span> marcadores</span>
+    </div>
+  </aside>
+
+  <div id="map-container">
+    <div id="map"></div>
+    <div id="map-hint">Clique em qualquer ponto para adicionar um marcador</div>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-header">
+      <div id="modal-title">Novo Marcador</div>
+      <div id="modal-coords"></div>
+    </div>
+    <div id="modal-body">
+      <div>
+        <div class="modal-label">Descrição</div>
+        <textarea id="modal-description" placeholder="Descreva o ponto de interesse..."></textarea>
+      </div>
+      <div>
+        <div class="modal-label">Categoria</div>
+        <div class="category-grid" id="category-grid"></div>
+      </div>
+    </div>
+    <div id="modal-footer">
+      <button class="btn btn-cancel" id="btn-cancel">Cancelar</button>
+      <button class="btn btn-save" id="btn-save">Marcar Ponto</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyASAvpGGRIGumtPJdhbeQsdYafTLhb0vjw",
+  authDomain: "crimson-map-7c507.firebaseapp.com",
+  databaseURL: "https://crimson-map-7c507-default-rtdb.firebaseio.com",
+  projectId: "crimson-map-7c507",
+  storageBucket: "crimson-map-7c507.firebasestorage.app",
+  messagingSenderId: "584628319563",
+  appId: "1:584628319563:web:0bdf91fcdc41980010e4ce"
+};
+
+const MAP_IMAGE_URL = "/home/rogerio/Downloads/";
+const MAP_IMAGE_WIDTH = 4096;
+const MAP_IMAGE_HEIGHT = 4096;
+
+const CATEGORIES = [
+  { id: "boss",    emoji: "⚔️",  label: "Boss"     },
+  { id: "loot",    emoji: "💰",  label: "Tesouro"  },
+  { id: "quest",   emoji: "📜",  label: "Missão"   },
+  { id: "puzzle",  emoji: "🔮",  label: "Puzzle"   },
+  { id: "horse",   emoji: "🐎",  label: "Cavalo"   },
+  { id: "note",    emoji: "📌",  label: "Nota"     }
+];
+
+let db, markersRef;
+let map;
+let leafletMarkers = {};
+let allMarkers = {};
+let activeFilters = new Set(CATEGORIES.map(c => c.id));
+let pendingLatLng = null;
+let selectedCategory = CATEGORIES[0].id;
+let searchQuery = "";
+
+function initFirebase() {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    markersRef = db.ref("pywel_markers");
+    setOnlineStatus("connected");
+    listenMarkers();
+  } catch(e) {
+    setOnlineStatus("error");
+    showToast("Erro ao conectar ao Firebase. Verifique as credenciais.");
+  }
+}
+
+function setOnlineStatus(state) {
+  const dot = document.getElementById("online-dot");
+  const label = document.getElementById("online-label");
+  dot.className = state === "connected" ? "connected" : state === "error" ? "error" : "";
+  label.textContent = state === "connected" ? "sincronizado" : state === "error" ? "erro" : "offline";
+}
+
+function initMap() {
+  const bounds = [[0, 0], [MAP_IMAGE_HEIGHT, MAP_IMAGE_WIDTH]];
+  map = L.map("map", {
+    crs: L.CRS.Simple,
+    minZoom: -3,
+    maxZoom: 3,
+    zoomSnap: 0.5,
+    attributionControl: false
+  });
+  L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map);
+  map.fitBounds(bounds);
+  map.on("click", onMapClick);
+}
+
+function onMapClick(e) {
+  pendingLatLng = e.latlng;
+  document.getElementById("modal-coords").textContent =
+    `X: ${Math.round(e.latlng.lng)}  Y: ${Math.round(e.latlng.lat)}`;
+  document.getElementById("modal-description").value = "";
+  selectCategory(CATEGORIES[0].id);
+  document.getElementById("modal-overlay").classList.add("open");
+  setTimeout(() => document.getElementById("modal-description").focus(), 80);
+}
+
+function listenMarkers() {
+  markersRef.on("value", snap => {
+    const data = snap.val() || {};
+    const incoming = new Set(Object.keys(data));
+    const existing = new Set(Object.keys(allMarkers));
+
+    existing.forEach(id => {
+      if (!incoming.has(id)) removeMarkerFromMap(id);
+    });
+
+    Object.entries(data).forEach(([id, marker]) => {
+      allMarkers[id] = marker;
+      if (!leafletMarkers[id]) addMarkerToMap(id, marker);
+    });
+
+    renderSidebar();
+  });
+}
+
+function getCatInfo(id) {
+  return CATEGORIES.find(c => c.id === id) || CATEGORIES[CATEGORIES.length - 1];
+}
+
+function createLeafletIcon(emoji) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="custom-marker">${emoji}</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -20]
+  });
+}
+
+function addMarkerToMap(id, data) {
+  const cat = getCatInfo(data.category);
+  const m = L.marker([data.lat, data.lng], { icon: createLeafletIcon(cat.emoji) });
+  m.bindPopup(buildPopupHTML(id, data, cat));
+  m.addTo(map);
+  leafletMarkers[id] = m;
+  if (!activeFilters.has(data.category)) m.setOpacity(0).off("click");
+}
+
+function buildPopupHTML(id, data, cat) {
+  return `<div class="popup-content">
+    <div class="popup-cat">${cat.emoji} ${cat.label}</div>
+    <div class="popup-desc">${escapeHtml(data.description)}</div>
+    <div class="popup-delete" onclick="deleteMarker('${id}')">✕ Remover marcador</div>
+  </div>`;
+}
+
+function removeMarkerFromMap(id) {
+  if (leafletMarkers[id]) {
+    map.removeLayer(leafletMarkers[id]);
+    delete leafletMarkers[id];
+  }
+  delete allMarkers[id];
+}
+
+function saveMarker(lat, lng, description, category) {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  markersRef.child(id).set({ lat, lng, description, category, ts: Date.now() });
+}
+
+function deleteMarker(id) {
+  markersRef.child(id).remove();
+  showToast("Marcador removido.");
+}
+
+function renderSidebar() {
+  const counts = {};
+  CATEGORIES.forEach(c => counts[c.id] = 0);
+  Object.values(allMarkers).forEach(m => {
+    if (counts[m.category] !== undefined) counts[m.category]++;
+  });
+
+  const filterGrid = document.getElementById("filter-grid");
+  filterGrid.innerHTML = "";
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement("button");
+    btn.className = "filter-btn" + (activeFilters.has(cat.id) ? " active" : "");
+    btn.innerHTML = `<span class="emoji">${cat.emoji}</span><span class="label">${cat.label}</span><span class="count">${counts[cat.id]}</span>`;
+    btn.onclick = () => toggleFilter(cat.id);
+    filterGrid.appendChild(btn);
+  });
+
+  const list = document.getElementById("marker-list");
+  const empty = document.getElementById("empty-list");
+  const filtered = Object.entries(allMarkers).filter(([_, m]) =>
+    activeFilters.has(m.category) &&
+    (!searchQuery || m.description.toLowerCase().includes(searchQuery))
+  ).sort((a, b) => b[1].ts - a[1].ts);
+
+  list.innerHTML = "";
+
+  if (filtered.length === 0) {
+    if (!empty.parentNode) list.appendChild(empty);
+    empty.style.display = "block";
+  } else {
+    if (empty.parentNode) empty.style.display = "none";
+    filtered.forEach(([id, m]) => {
+      const cat = getCatInfo(m.category);
+      const item = document.createElement("div");
+      item.className = "marker-list-item";
+      item.innerHTML = `
+        <span class="item-emoji">${cat.emoji}</span>
+        <div class="item-text">
+          <div class="item-desc">${escapeHtml(m.description || "(sem descrição)")}</div>
+          <div class="item-cat">${cat.label}</div>
+        </div>
+        <button class="item-delete" title="Remover" onclick="event.stopPropagation();deleteMarker('${id}')">✕</button>`;
+      item.addEventListener("click", () => {
+        if (leafletMarkers[id]) {
+          map.setView([m.lat, m.lng], 1);
+          leafletMarkers[id].openPopup();
+        }
+      });
+      list.appendChild(item);
+    });
+  }
+
+  document.getElementById("total-count").textContent = Object.keys(allMarkers).length;
+}
+
+function toggleFilter(catId) {
+  if (activeFilters.has(catId)) {
+    activeFilters.delete(catId);
+  } else {
+    activeFilters.add(catId);
+  }
+  applyFilters();
+  renderSidebar();
+}
+
+function applyFilters() {
+  Object.entries(leafletMarkers).forEach(([id, m]) => {
+    const data = allMarkers[id];
+    if (!data) return;
+    const visible = activeFilters.has(data.category) &&
+      (!searchQuery || data.description.toLowerCase().includes(searchQuery));
+    m.setOpacity(visible ? 1 : 0);
+    if (visible) m.on("click", () => m.openPopup());
+    else m.off("click");
+  });
+}
+
+function initCategoryGrid() {
+  const grid = document.getElementById("category-grid");
+  CATEGORIES.forEach(cat => {
+    const el = document.createElement("div");
+    el.className = "cat-option" + (cat.id === selectedCategory ? " selected" : "");
+    el.dataset.id = cat.id;
+    el.innerHTML = `<span class="cat-emoji">${cat.emoji}</span><span class="cat-name">${cat.label}</span>`;
+    el.onclick = () => selectCategory(cat.id);
+    grid.appendChild(el);
+  });
+}
+
+function selectCategory(id) {
+  selectedCategory = id;
+  document.querySelectorAll(".cat-option").forEach(el => {
+    el.classList.toggle("selected", el.dataset.id === id);
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+document.getElementById("btn-cancel").onclick = () => {
+  document.getElementById("modal-overlay").classList.remove("open");
+};
+
+document.getElementById("btn-save").onclick = () => {
+  const desc = document.getElementById("modal-description").value.trim();
+  if (!desc) {
+    showToast("Adicione uma descrição ao marcador.");
+    return;
+  }
+  if (!pendingLatLng) return;
+  saveMarker(pendingLatLng.lat, pendingLatLng.lng, desc, selectedCategory);
+  document.getElementById("modal-overlay").classList.remove("open");
+  showToast("Marcador adicionado com sucesso.");
+};
+
+document.getElementById("modal-overlay").onclick = (e) => {
+  if (e.target === document.getElementById("modal-overlay"))
+    document.getElementById("modal-overlay").classList.remove("open");
+};
+
+document.getElementById("search-input").addEventListener("input", (e) => {
+  searchQuery = e.target.value.toLowerCase().trim();
+  applyFilters();
+  renderSidebar();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.getElementById("modal-overlay").classList.remove("open");
+});
+
+initCategoryGrid();
+initMap();
+initFirebase();
+</script>
+</body>
+</html>
