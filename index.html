@@ -27,6 +27,7 @@
     --text-dim: #7a756e;
     --text-muted: #45423d;
     --white: #f0ebe4;
+    --sidebar-w: 280px;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -43,11 +44,12 @@
     display: flex;
     height: 100vh;
     width: 100vw;
+    position: relative;
   }
 
   #sidebar {
-    width: 280px;
-    min-width: 280px;
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
     background: var(--surface);
     border-right: 1px solid var(--border);
     display: flex;
@@ -55,6 +57,14 @@
     z-index: 1000;
     position: relative;
     overflow: hidden;
+    transition: width 0.3s ease, min-width 0.3s ease, opacity 0.25s ease;
+  }
+
+  #sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    opacity: 0;
+    pointer-events: none;
   }
 
   #sidebar::before {
@@ -63,12 +73,14 @@
     top: 0; left: 0; right: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--crimson-bright), var(--gold), var(--crimson-bright), transparent);
+    z-index: 1;
   }
 
   #sidebar-header {
     padding: 22px 20px 18px;
     border-bottom: 1px solid var(--border);
     position: relative;
+    white-space: nowrap;
   }
 
   #sidebar-header .emblem {
@@ -90,9 +102,7 @@
     line-height: 1.1;
   }
 
-  #sidebar-header h1 span {
-    color: var(--crimson-glow);
-  }
+  #sidebar-header h1 span { color: var(--crimson-glow); }
 
   #sidebar-header .subtitle {
     font-size: 12px;
@@ -224,17 +234,11 @@
     gap: 8px;
   }
 
-  .marker-list-item:hover {
-    border-color: var(--border-bright);
-    background: #1e1e23;
-  }
+  .marker-list-item:hover { border-color: var(--border-bright); background: #1e1e23; }
 
   .marker-list-item .item-emoji { font-size: 15px; margin-top: 1px; }
 
-  .marker-list-item .item-text {
-    flex: 1;
-    min-width: 0;
-  }
+  .marker-list-item .item-text { flex: 1; min-width: 0; }
 
   .marker-list-item .item-desc {
     font-size: 13px;
@@ -245,13 +249,17 @@
     line-height: 1.3;
   }
 
-  .marker-list-item .item-cat {
+  .marker-list-item .item-meta {
     font-size: 10px;
     color: var(--text-muted);
     font-family: 'Cinzel', serif;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
     margin-top: 2px;
+    display: flex;
+    gap: 6px;
   }
+
+  .marker-list-item .item-author { color: var(--gold-dim); }
 
   .marker-list-item .item-delete {
     color: var(--text-muted);
@@ -274,6 +282,7 @@
     font-size: 13px;
     text-align: center;
     padding: 20px 0;
+    line-height: 1.6;
   }
 
   #sidebar-footer {
@@ -286,15 +295,13 @@
     align-items: center;
   }
 
-  #total-count {
-    font-family: 'Cinzel', serif;
-    color: var(--gold-dim);
-  }
+  #total-count { font-family: 'Cinzel', serif; color: var(--gold-dim); }
 
   #map-container {
     flex: 1;
     position: relative;
     background: var(--bg);
+    min-width: 0;
   }
 
   #map {
@@ -311,6 +318,7 @@
   .leaflet-control-zoom {
     border: 1px solid var(--border) !important;
     background: var(--surface) !important;
+    margin-left: 54px !important;
   }
 
   .leaflet-control-zoom a {
@@ -326,6 +334,41 @@
   }
 
   .leaflet-control-attribution { display: none !important; }
+
+  #sidebar-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1100;
+    width: 36px;
+    height: 36px;
+    background: var(--surface);
+    border: 1px solid var(--border-bright);
+    border-radius: 3px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  #sidebar-toggle:hover {
+    border-color: var(--gold-dim);
+    background: var(--surface2);
+  }
+
+  #sidebar-toggle span {
+    display: block;
+    width: 16px;
+    height: 1.5px;
+    background: var(--text-dim);
+    border-radius: 1px;
+    transition: background 0.15s;
+  }
+
+  #sidebar-toggle:hover span { background: var(--gold); }
 
   #map-hint {
     position: absolute;
@@ -357,7 +400,7 @@
     background: var(--surface);
     border: 1px solid var(--border-bright);
     border-radius: 4px;
-    width: 360px;
+    width: 380px;
     position: relative;
     overflow: hidden;
   }
@@ -405,6 +448,22 @@
     text-transform: uppercase;
     margin-bottom: 7px;
   }
+
+  #modal-author-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'Crimson Pro', serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #modal-author-input:focus { border-color: var(--gold-dim); }
+  #modal-author-input::placeholder { color: var(--text-muted); font-style: italic; }
 
   #modal-description {
     width: 100%;
@@ -527,10 +586,7 @@
 
   .leaflet-popup-tip { background: var(--surface) !important; }
 
-  .popup-content {
-    min-width: 160px;
-    max-width: 240px;
-  }
+  .popup-content { min-width: 160px; max-width: 240px; }
 
   .popup-cat {
     font-family: 'Cinzel', serif;
@@ -548,6 +604,14 @@
     font-size: 14px;
     color: var(--text);
     line-height: 1.45;
+  }
+
+  .popup-author {
+    font-size: 11px;
+    color: var(--gold-dim);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+    margin-top: 6px;
   }
 
   .popup-delete {
@@ -584,10 +648,7 @@
     pointer-events: none;
   }
 
-  #toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -605,7 +666,7 @@
     <div id="sidebar-body">
       <div>
         <div class="sidebar-section-label">Buscar marcadores</div>
-        <input type="text" id="search-input" placeholder="Descrição, local, tipo...">
+        <input type="text" id="search-input" placeholder="Descrição, autor, tipo...">
       </div>
       <div>
         <div class="sidebar-section-label">Filtrar por categoria</div>
@@ -624,6 +685,9 @@
   </aside>
 
   <div id="map-container">
+    <button id="sidebar-toggle" title="Mostrar/ocultar painel">
+      <span></span><span></span><span></span>
+    </button>
     <div id="map"></div>
     <div id="map-hint">Clique em qualquer ponto para adicionar um marcador</div>
   </div>
@@ -636,6 +700,10 @@
       <div id="modal-coords"></div>
     </div>
     <div id="modal-body">
+      <div>
+        <div class="modal-label">Seu nome</div>
+        <input type="text" id="modal-author-input" placeholder="Ex: Kael, Morgana...">
+      </div>
       <div>
         <div class="modal-label">Descrição</div>
         <textarea id="modal-description" placeholder="Descreva o ponto de interesse..."></textarea>
@@ -656,7 +724,7 @@
 
 <script>
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyASAvpGGRIGumtPJdhbeQsdYafTLhb0vjw",
+   apiKey: "AIzaSyASAvpGGRIGumtPJdhbeQsdYafTLhb0vjw",
   authDomain: "crimson-map-7c507.firebaseapp.com",
   databaseURL: "https://crimson-map-7c507-default-rtdb.firebaseio.com",
   projectId: "crimson-map-7c507",
@@ -665,17 +733,17 @@ const FIREBASE_CONFIG = {
   appId: "1:584628319563:web:0bdf91fcdc41980010e4ce"
 };
 
-const MAP_IMAGE_URL = "https://www.powerpyx.com/wp-content/uploads/crimson-desert-full-world-map.jpg";
+const MAP_IMAGE_URL = "  https://www.powerpyx.com/wp-content/uploads/crimson-desert-full-world-map.jpg";
 const MAP_IMAGE_WIDTH = 4096;
 const MAP_IMAGE_HEIGHT = 4096;
 
 const CATEGORIES = [
-  { id: "boss",    emoji: "⚔️",  label: "Boss"     },
-  { id: "loot",    emoji: "💰",  label: "Tesouro"  },
-  { id: "quest",   emoji: "📜",  label: "Missão"   },
-  { id: "puzzle",  emoji: "🔮",  label: "Puzzle"   },
-  { id: "horse",   emoji: "🐎",  label: "Cavalo"   },
-  { id: "note",    emoji: "📌",  label: "Nota"     }
+  { id: "boss",   emoji: "⚔️", label: "Boss"    },
+  { id: "loot",   emoji: "💰", label: "Tesouro" },
+  { id: "quest",  emoji: "📜", label: "Missão"  },
+  { id: "puzzle", emoji: "🔮", label: "Puzzle"  },
+  { id: "horse",  emoji: "🐎", label: "Cavalo"  },
+  { id: "note",   emoji: "📌", label: "Nota"    }
 ];
 
 let db, markersRef;
@@ -686,6 +754,7 @@ let activeFilters = new Set(CATEGORIES.map(c => c.id));
 let pendingLatLng = null;
 let selectedCategory = CATEGORIES[0].id;
 let searchQuery = "";
+let savedAuthor = localStorage.getItem("cd_author") || "";
 
 function initFirebase() {
   try {
@@ -709,15 +778,23 @@ function setOnlineStatus(state) {
 
 function initMap() {
   const bounds = [[0, 0], [MAP_IMAGE_HEIGHT, MAP_IMAGE_WIDTH]];
+
   map = L.map("map", {
     crs: L.CRS.Simple,
     minZoom: -3,
     maxZoom: 3,
-    zoomSnap: 0.5,
-    attributionControl: false
+    zoomSnap: 0.25,
+    attributionControl: false,
+    maxBounds: bounds,
+    maxBoundsViscosity: 1.0
   });
+
   L.imageOverlay(MAP_IMAGE_URL, bounds).addTo(map);
-  map.fitBounds(bounds);
+  map.fitBounds(bounds, { padding: [0, 0] });
+
+  const naturalMin = map.getBoundsZoom(bounds);
+  map.setMinZoom(naturalMin);
+
   map.on("click", onMapClick);
 }
 
@@ -726,9 +803,14 @@ function onMapClick(e) {
   document.getElementById("modal-coords").textContent =
     `X: ${Math.round(e.latlng.lng)}  Y: ${Math.round(e.latlng.lat)}`;
   document.getElementById("modal-description").value = "";
+  document.getElementById("modal-author-input").value = savedAuthor;
   selectCategory(CATEGORIES[0].id);
   document.getElementById("modal-overlay").classList.add("open");
-  setTimeout(() => document.getElementById("modal-description").focus(), 80);
+  setTimeout(() => {
+    const authorInput = document.getElementById("modal-author-input");
+    if (!authorInput.value) authorInput.focus();
+    else document.getElementById("modal-description").focus();
+  }, 80);
 }
 
 function listenMarkers() {
@@ -743,9 +825,12 @@ function listenMarkers() {
 
     Object.entries(data).forEach(([id, marker]) => {
       allMarkers[id] = marker;
-      if (!leafletMarkers[id]) addMarkerToMap(id, marker);
+      if (!leafletMarkers[id]) {
+        addMarkerToMap(id, marker);
+      }
     });
 
+    applyFilters();
     renderSidebar();
   });
 }
@@ -770,13 +855,16 @@ function addMarkerToMap(id, data) {
   m.bindPopup(buildPopupHTML(id, data, cat));
   m.addTo(map);
   leafletMarkers[id] = m;
-  if (!activeFilters.has(data.category)) m.setOpacity(0).off("click");
 }
 
 function buildPopupHTML(id, data, cat) {
+  const authorLine = data.author
+    ? `<div class="popup-author">por ${escapeHtml(data.author)}</div>`
+    : "";
   return `<div class="popup-content">
     <div class="popup-cat">${cat.emoji} ${cat.label}</div>
     <div class="popup-desc">${escapeHtml(data.description)}</div>
+    ${authorLine}
     <div class="popup-delete" onclick="deleteMarker('${id}')">✕ Remover marcador</div>
   </div>`;
 }
@@ -789,14 +877,36 @@ function removeMarkerFromMap(id) {
   delete allMarkers[id];
 }
 
-function saveMarker(lat, lng, description, category) {
+function saveMarker(lat, lng, description, category, author) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  markersRef.child(id).set({ lat, lng, description, category, ts: Date.now() });
+  markersRef.child(id).set({ lat, lng, description, category, author, ts: Date.now() });
 }
 
 function deleteMarker(id) {
   markersRef.child(id).remove();
   showToast("Marcador removido.");
+}
+
+function isVisible(markerData) {
+  return activeFilters.has(markerData.category) &&
+    (!searchQuery ||
+      markerData.description.toLowerCase().includes(searchQuery) ||
+      (markerData.author || "").toLowerCase().includes(searchQuery));
+}
+
+function applyFilters() {
+  Object.entries(leafletMarkers).forEach(([id, lm]) => {
+    const data = allMarkers[id];
+    if (!data) return;
+    if (isVisible(data)) {
+      lm.setOpacity(1);
+      lm.getElement() && (lm.getElement().style.pointerEvents = "auto");
+    } else {
+      lm.setOpacity(0);
+      lm.closePopup();
+      lm.getElement() && (lm.getElement().style.pointerEvents = "none");
+    }
+  });
 }
 
 function renderSidebar() {
@@ -817,28 +927,31 @@ function renderSidebar() {
   });
 
   const list = document.getElementById("marker-list");
-  const empty = document.getElementById("empty-list");
-  const filtered = Object.entries(allMarkers).filter(([_, m]) =>
-    activeFilters.has(m.category) &&
-    (!searchQuery || m.description.toLowerCase().includes(searchQuery))
-  ).sort((a, b) => b[1].ts - a[1].ts);
+  const emptyEl = document.getElementById("empty-list");
+
+  const filtered = Object.entries(allMarkers)
+    .filter(([_, m]) => isVisible(m))
+    .sort((a, b) => b[1].ts - a[1].ts);
 
   list.innerHTML = "";
 
   if (filtered.length === 0) {
-    if (!empty.parentNode) list.appendChild(empty);
-    empty.style.display = "block";
+    list.appendChild(emptyEl);
+    emptyEl.style.display = "block";
   } else {
-    if (empty.parentNode) empty.style.display = "none";
+    emptyEl.style.display = "none";
     filtered.forEach(([id, m]) => {
       const cat = getCatInfo(m.category);
       const item = document.createElement("div");
       item.className = "marker-list-item";
+      const authorHtml = m.author
+        ? `<span class="item-author">${escapeHtml(m.author)}</span> · `
+        : "";
       item.innerHTML = `
         <span class="item-emoji">${cat.emoji}</span>
         <div class="item-text">
           <div class="item-desc">${escapeHtml(m.description || "(sem descrição)")}</div>
-          <div class="item-cat">${cat.label}</div>
+          <div class="item-meta">${authorHtml}<span>${cat.label}</span></div>
         </div>
         <button class="item-delete" title="Remover" onclick="event.stopPropagation();deleteMarker('${id}')">✕</button>`;
       item.addEventListener("click", () => {
@@ -855,25 +968,10 @@ function renderSidebar() {
 }
 
 function toggleFilter(catId) {
-  if (activeFilters.has(catId)) {
-    activeFilters.delete(catId);
-  } else {
-    activeFilters.add(catId);
-  }
+  if (activeFilters.has(catId)) activeFilters.delete(catId);
+  else activeFilters.add(catId);
   applyFilters();
   renderSidebar();
-}
-
-function applyFilters() {
-  Object.entries(leafletMarkers).forEach(([id, m]) => {
-    const data = allMarkers[id];
-    if (!data) return;
-    const visible = activeFilters.has(data.category) &&
-      (!searchQuery || data.description.toLowerCase().includes(searchQuery));
-    m.setOpacity(visible ? 1 : 0);
-    if (visible) m.on("click", () => m.openPopup());
-    else m.off("click");
-  });
 }
 
 function initCategoryGrid() {
@@ -911,20 +1009,31 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
+document.getElementById("sidebar-toggle").onclick = () => {
+  const sidebar = document.getElementById("sidebar");
+  sidebar.classList.toggle("collapsed");
+  setTimeout(() => map.invalidateSize(), 320);
+};
+
 document.getElementById("btn-cancel").onclick = () => {
   document.getElementById("modal-overlay").classList.remove("open");
 };
 
 document.getElementById("btn-save").onclick = () => {
   const desc = document.getElementById("modal-description").value.trim();
+  const author = document.getElementById("modal-author-input").value.trim();
   if (!desc) {
     showToast("Adicione uma descrição ao marcador.");
     return;
   }
   if (!pendingLatLng) return;
-  saveMarker(pendingLatLng.lat, pendingLatLng.lng, desc, selectedCategory);
+  if (author) {
+    savedAuthor = author;
+    localStorage.setItem("cd_author", author);
+  }
+  saveMarker(pendingLatLng.lat, pendingLatLng.lng, desc, selectedCategory, author);
   document.getElementById("modal-overlay").classList.remove("open");
-  showToast("Marcador adicionado com sucesso.");
+  showToast("Marcador adicionado por " + (author || "Anônimo") + ".");
 };
 
 document.getElementById("modal-overlay").onclick = (e) => {
